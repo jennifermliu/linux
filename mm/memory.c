@@ -238,23 +238,13 @@ void arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
 	__tlb_reset_range(tlb);
 }
 
-static void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
-{
-	if (!tlb->end)
-		return;
-
-	tlb_flush(tlb);
-	mmu_notifier_invalidate_range(tlb->mm, tlb->start, tlb->end);
-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
-	tlb_table_flush(tlb);
-#endif
-	__tlb_reset_range(tlb);
-}
-
 static void tlb_flush_mmu_free(struct mmu_gather *tlb)
 {
 	struct mmu_gather_batch *batch;
 
+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+	tlb_table_flush(tlb);
+#endif
 	for (batch = &tlb->local; batch && batch->nr; batch = batch->next) {
 		free_pages_and_swap_cache(batch->pages, batch->nr);
 		batch->nr = 0;
@@ -326,20 +316,31 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_
 
 #ifdef CONFIG_HAVE_RCU_TABLE_FREE
 
-static void tlb_remove_table_smp_sync(void *arg)
+/*
+ * See the comment near struct mmu_table_batch.
+ */
+
+/*
+ * If we want tlb_remove_table() to imply TLB invalidates.
+ */
+static inline void tlb_table_invalidate(struct mmu_gather *tlb)
 {
-	struct mm_struct __maybe_unused *mm = arg;
+#ifdef CONFIG_HAVE_RCU_TABLE_INVALIDATE
 	/*
-	 * On most architectures this does nothing. Simply delivering the
-	 * interrupt is enough to prevent races with software page table
-	 * walking like that done in get_user_pages_fast.
-	 *
-	 * See the comment near struct mmu_table_batch.
+	 * Invalidate page-table caches used by hardware walkers. Then we still
+	 * need to RCU-sched wait while freeing the pages because software
+	 * walkers can still be in-flight.
 	 */
-	tlb_flush_remove_tables_local(mm);
+	tlb_flush_mmu_tlbonly(tlb);
+#endif
 }
 
-static void tlb_remove_table_one(void *table, struct mmu_gather *tlb)
+static void tlb_remove_table_smp_sync(void *arg)
+{
+	/* Simply deliver the interrupt */
+}
+
+static void tlb_remove_table_one(void *table)
 {
 	/*
 	 * This isn't an RCU grace period and hence the page-tables cannot be
@@ -348,7 +349,7 @@ static void tlb_remove_table_one(void *table, struct mmu_gather *tlb)
 	 * It is however sufficient for software page-table walkers that rely on
 	 * IRQ disabling. See the comment near struct mmu_table_batch.
 	 */
-	smp_call_function(tlb_remove_table_smp_sync, tlb->mm, 1);
+	smp_call_function(tlb_remove_table_smp_sync, NULL, 1);
 	__tlb_remove_table(table);
 }
 
@@ -369,9 +370,8 @@ void tlb_table_flush(struct mmu_gather *tlb)
 {
 	struct mmu_table_batch **batch = &tlb->batch;
 
-	tlb_flush_remove_tables(tlb->mm);
-
 	if (*batch) {
+		tlb_table_invalidate(tlb);
 		call_rcu_sched(&(*batch)->rcu, tlb_remove_table_rcu);
 		*batch = NULL;
 	}
@@ -381,23 +381,16 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
 {
 	struct mmu_table_batch **batch = &tlb->batch;
 
-	/*
-	 * When there's less then two users of this mm there cannot be a
-	 * concurrent page-table walk.
-	 */
-	if (atomic_read(&tlb->mm->mm_users) < 2) {
-		__tlb_remove_table(table);
-		return;
-	}
-
 	if (*batch == NULL) {
 		*batch = (struct mmu_table_batch *)__get_free_page(GFP_NOWAIT | __GFP_NOWARN);
 		if (*batch == NULL) {
-			tlb_remove_table_one(table, tlb);
+			tlb_table_invalidate(tlb);
+			tlb_remove_table_one(table);
 			return;
 		}
 		(*batch)->nr = 0;
 	}
+
 	(*batch)->tables[(*batch)->nr++] = table;
 	if ((*batch)->nr == MAX_TABLE_BATCH)
 		tlb_table_flush(tlb);
@@ -859,6 +852,10 @@ struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
 				return NULL;
 			}
 		}
+
+		if (pte_devmap(pte))
+			return NULL;
+
 		print_bad_pte(vma, addr, pte, NULL);
 		return NULL;
 	}
@@ -923,6 +920,8 @@ struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
 		}
 	}
 
+	if (pmd_devmap(pmd))
+		return NULL;
 	if (is_zero_pfn(pfn))
 		return NULL;
 	if (unlikely(pfn > highest_memmap_pfn))
@@ -1607,20 +1606,8 @@ void zap_page_range(struct vm_area_struct *vma, unsigned long start,
 	tlb_gather_mmu(&tlb, mm, start, end);
 	update_hiwater_rss(mm);
 	mmu_notifier_invalidate_range_start(mm, start, end);
-	for ( ; vma && vma->vm_start < end; vma = vma->vm_next) {
+	for ( ; vma && vma->vm_start < end; vma = vma->vm_next)
 		unmap_single_vma(&tlb, vma, start, end, NULL);
-
-		/*
-		 * zap_page_range does not specify whether mmap_sem should be
-		 * held for read or write. That allows parallel zap_page_range
-		 * operations to unmap a PTE and defer a flush meaning that
-		 * this call observes pte_none and fails to flush the TLB.
-		 * Rather than adding a complex API, ensure that no stale
-		 * TLB entries exist when this call returns.
-		 */
-		flush_tlb_range(vma, start, end);
-	}
-
 	mmu_notifier_invalidate_range_end(mm, start, end);
 	tlb_finish_mmu(&tlb, start, end);
 }
@@ -3394,7 +3381,7 @@ static int do_set_pmd(struct vm_fault *vmf, struct page *page)
 	if (write)
 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
 
-	add_mm_counter(vma->vm_mm, MM_FILEPAGES, HPAGE_PMD_NR);
+	add_mm_counter(vma->vm_mm, mm_counter_file(page), HPAGE_PMD_NR);
 	page_add_file_rmap(page, true);
 	/*
 	 * deposit and withdraw with pmd lock held
@@ -4147,7 +4134,7 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 	 * space.  Kernel faults are handled more gracefully.
 	 */
 	if (flags & FAULT_FLAG_USER)
-		mem_cgroup_oom_enable();
+		mem_cgroup_enter_user_fault();
 
 	if (unlikely(is_vm_hugetlb_page(vma)))
 		ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
@@ -4155,7 +4142,7 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 		ret = __handle_mm_fault(vma, address, flags);
 
 	if (flags & FAULT_FLAG_USER) {
-		mem_cgroup_oom_disable();
+		mem_cgroup_exit_user_fault();
 		/*
 		 * The task may have entered a memcg OOM situation but
 		 * if the allocation error was handled gracefully (no
@@ -4593,6 +4580,57 @@ EXPORT_SYMBOL(__might_fault);
 #endif
 
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
+/*
+ * Process all subpages of the specified huge page with the specified
+ * operation.  The target subpage will be processed last to keep its
+ * cache lines hot.
+ */
+static inline void process_huge_page(
+	unsigned long addr_hint, unsigned int pages_per_huge_page,
+	void (*process_subpage)(unsigned long addr, int idx, void *arg),
+	void *arg)
+{
+	int i, n, base, l;
+	unsigned long addr = addr_hint &
+		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
+
+	/* Process target subpage last to keep its cache lines hot */
+	might_sleep();
+	n = (addr_hint - addr) / PAGE_SIZE;
+	if (2 * n <= pages_per_huge_page) {
+		/* If target subpage in first half of huge page */
+		base = 0;
+		l = n;
+		/* Process subpages at the end of huge page */
+		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
+			cond_resched();
+			process_subpage(addr + i * PAGE_SIZE, i, arg);
+		}
+	} else {
+		/* If target subpage in second half of huge page */
+		base = pages_per_huge_page - 2 * (pages_per_huge_page - n);
+		l = pages_per_huge_page - n;
+		/* Process subpages at the begin of huge page */
+		for (i = 0; i < base; i++) {
+			cond_resched();
+			process_subpage(addr + i * PAGE_SIZE, i, arg);
+		}
+	}
+	/*
+	 * Process remaining subpages in left-right-left-right pattern
+	 * towards the target subpage
+	 */
+	for (i = 0; i < l; i++) {
+		int left_idx = base + i;
+		int right_idx = base + 2 * l - 1 - i;
+
+		cond_resched();
+		process_subpage(addr + left_idx * PAGE_SIZE, left_idx, arg);
+		cond_resched();
+		process_subpage(addr + right_idx * PAGE_SIZE, right_idx, arg);
+	}
+}
+
 static void clear_gigantic_page(struct page *page,
 				unsigned long addr,
 				unsigned int pages_per_huge_page)
@@ -4607,10 +4645,17 @@ static void clear_gigantic_page(struct page *page,
 		clear_user_highpage(p, addr + i * PAGE_SIZE);
 	}
 }
+
+static void clear_subpage(unsigned long addr, int idx, void *arg)
+{
+	struct page *page = arg;
+
+	clear_user_highpage(page + idx, addr);
+}
+
 void clear_huge_page(struct page *page,
 		     unsigned long addr_hint, unsigned int pages_per_huge_page)
 {
-	int i, n, base, l;
 	unsigned long addr = addr_hint &
 		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
 
@@ -4619,43 +4664,7 @@ void clear_huge_page(struct page *page,
 		return;
 	}
 
-	/* Clear sub-page to access last to keep its cache lines hot */
-	might_sleep();
-	n = (addr_hint - addr) / PAGE_SIZE;
-	if (2 * n <= pages_per_huge_page) {
-		/* If sub-page to access in first half of huge page */
-		base = 0;
-		l = n;
-		/* Clear sub-pages at the end of huge page */
-		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
-			cond_resched();
-			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-		}
-	} else {
-		/* If sub-page to access in second half of huge page */
-		base = pages_per_huge_page - 2 * (pages_per_huge_page - n);
-		l = pages_per_huge_page - n;
-		/* Clear sub-pages at the begin of huge page */
-		for (i = 0; i < base; i++) {
-			cond_resched();
-			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-		}
-	}
-	/*
-	 * Clear remaining sub-pages in left-right-left-right pattern
-	 * towards the sub-page to access
-	 */
-	for (i = 0; i < l; i++) {
-		int left_idx = base + i;
-		int right_idx = base + 2 * l - 1 - i;
-
-		cond_resched();
-		clear_user_highpage(page + left_idx,
-				    addr + left_idx * PAGE_SIZE);
-		cond_resched();
-		clear_user_highpage(page + right_idx,
-				    addr + right_idx * PAGE_SIZE);
-	}
+	process_huge_page(addr_hint, pages_per_huge_page, clear_subpage, page);
 }
 
 static void copy_user_gigantic_page(struct page *dst, struct page *src,
@@ -4677,11 +4686,31 @@ static void copy_user_gigantic_page(struct page *dst, struct page *src,
 	}
 }
 
+struct copy_subpage_arg {
+	struct page *dst;
+	struct page *src;
+	struct vm_area_struct *vma;
+};
+
+static void copy_subpage(unsigned long addr, int idx, void *arg)
+{
+	struct copy_subpage_arg *copy_arg = arg;
+
+	copy_user_highpage(copy_arg->dst + idx, copy_arg->src + idx,
+			   addr, copy_arg->vma);
+}
+
 void copy_user_huge_page(struct page *dst, struct page *src,
-			 unsigned long addr, struct vm_area_struct *vma,
+			 unsigned long addr_hint, struct vm_area_struct *vma,
 			 unsigned int pages_per_huge_page)
 {
-	int i;
+	unsigned long addr = addr_hint &
+		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
+	struct copy_subpage_arg arg = {
+		.dst = dst,
+		.src = src,
+		.vma = vma,
+	};
 
 	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
 		copy_user_gigantic_page(dst, src, addr, vma,
@@ -4689,11 +4718,7 @@ void copy_user_huge_page(struct page *dst, struct page *src,
 		return;
 	}
 
-	might_sleep();
-	for (i = 0; i < pages_per_huge_page; i++) {
-		cond_resched();
-		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE, vma);
-	}
+	process_huge_page(addr_hint, pages_per_huge_page, copy_subpage, &arg);
 }
 
 long copy_huge_page_from_user(struct page *dst_page,
