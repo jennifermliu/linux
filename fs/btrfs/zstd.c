@@ -20,7 +20,7 @@
 #define ZSTD_BTRFS_MAX_WINDOWLOG 17
 #define ZSTD_BTRFS_MAX_INPUT (1 << ZSTD_BTRFS_MAX_WINDOWLOG)
 #define ZSTD_BTRFS_DEFAULT_LEVEL 3
-#define ZSTD_BTRFS_MAX_LEVEL 9
+#define ZSTD_BTRFS_MAX_LEVEL 15
 
 static ZSTD_parameters zstd_get_btrfs_parameters(size_t src_len, unsigned level)
 {
@@ -33,7 +33,7 @@ static ZSTD_parameters zstd_get_btrfs_parameters(size_t src_len, unsigned level)
 }
 
 static void zstd_update_btrfs_parameters(ZSTD_parameters* params,
-																				 ZSTD_parameters original_params)
+		ZSTD_parameters original_params)
 {
 	if (params->cParams.windowLog > original_params.cParams.windowLog)
 		params->cParams.windowLog = original_params.cParams.windowLog;
@@ -94,7 +94,6 @@ fail:
 	return ERR_PTR(-ENOMEM);
 }
 
-
 static int zstd_compress_pages(struct list_head *ws,
 		struct address_space *mapping,
 		u64 start,
@@ -114,9 +113,9 @@ static int zstd_compress_pages(struct list_head *ws,
 	unsigned long len = *total_out;
 	const unsigned long nr_dest_pages = *out_pages;
 	unsigned long max_out = nr_dest_pages * PAGE_SIZE;
-
 	ZSTD_parameters params = zstd_get_btrfs_parameters(len, workspace->level);
-	size_t new_size = ZSTD_CStreamWorkspaceBound(params.cParams);
+	const size_t new_size = ZSTD_CStreamWorkspaceBound(params.cParams);
+
 	if (new_size > workspace->size) {
 		if (new_size < workspace->lowest_failed_size) {
 			void *new_mem = kvmalloc(new_size, GFP_KERNEL);

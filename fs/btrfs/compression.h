@@ -24,7 +24,6 @@
 #define BTRFS_MAX_UNCOMPRESSED		(SZ_128K)
 
 #define	BTRFS_ZLIB_DEFAULT_LEVEL		3
-
 #define	BTRFS_ZSTD_DEFAULT_LEVEL		3
 
 struct compressed_bio {
