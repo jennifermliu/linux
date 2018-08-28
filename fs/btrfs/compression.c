@@ -1599,7 +1599,7 @@ unsigned int btrfs_compress_str2level(const char *str)
 	int result;
 
 	if (strncmp(str, "zlib", 4) == 0) {
-		result = kstrtouint(str + 5, 0, &level);
+		result = kstrtouint(str + 5, 10, &level);
 		/* Accepted form: zlib:1 up to zlib:9 and nothing left after the number */
 		if (str[4] == ':' && result == 0 && 0 < level && level <= 9)
 			return level;
@@ -1607,7 +1607,7 @@ unsigned int btrfs_compress_str2level(const char *str)
 	}
 
 	if (strncmp(str, "zstd", 4) == 0) {
-		result = kstrtouint(str + 5, 0, &level);
+		result = kstrtouint(str + 5, 10, &level);
 		/* Accepted form: zstd:1 up to zstd:15 and nothing left after the number */
 		if (str[4] == ':' && result == 0 && 0 < level && level <= 15)
 			return level;
