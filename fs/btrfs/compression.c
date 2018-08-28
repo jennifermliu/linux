@@ -1603,11 +1603,15 @@ unsigned int btrfs_compress_str2level(const char *str)
 	}
 
 	if (strncmp(str, "zstd", 4) == 0) {
-		/* Accepted form: zstd:1 up to zstd:15 and nothing left after the number */
-		if (str[4] == ':' && '1' <= str[5] && str[5] <= '9' && str[6] == 0) /* 1 to 9 */
-			return str[5] - '0';
-		if (str[4] == ':' && str[5] == '1'&& '0' <= str[6] && str[6] <= '5' && str[7] == 0) /* 10 to 15 */
-			return str[6] - '0' + 10;
+		unsigned level;
+		int result;
+
+		if (str[4] == ':') {
+			result = kstrtouint(str + 5, 0, &level);
+			/* Accepted form: zstd:1 up to zstd:15 and nothing left after the number */
+			if (result == 0 && 0 < level && level <= 15)
+				return level;
+		}
 		return BTRFS_ZSTD_DEFAULT_LEVEL;
 	}
 
