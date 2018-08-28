@@ -1595,23 +1595,22 @@ out:
 
 unsigned int btrfs_compress_str2level(const char *str)
 {
+	unsigned level;
+	int result;
+
 	if (strncmp(str, "zlib", 4) == 0) {
+		result = kstrtouint(str + 5, 0, &level);
 		/* Accepted form: zlib:1 up to zlib:9 and nothing left after the number */
-		if (str[4] == ':' && '1' <= str[5] && str[5] <= '9' && str[6] == 0)
-			return str[5] - '0';
+		if (str[4] == ':' && result == 0 && 0 < level && level <= 9)
+			return level;
 		return BTRFS_ZLIB_DEFAULT_LEVEL;
 	}
 
 	if (strncmp(str, "zstd", 4) == 0) {
-		unsigned level;
-		int result;
-
-		if (str[4] == ':') {
-			result = kstrtouint(str + 5, 0, &level);
-			/* Accepted form: zstd:1 up to zstd:15 and nothing left after the number */
-			if (result == 0 && 0 < level && level <= 15)
-				return level;
-		}
+		result = kstrtouint(str + 5, 0, &level);
+		/* Accepted form: zstd:1 up to zstd:15 and nothing left after the number */
+		if (str[4] == ':' && result == 0 && 0 < level && level <= 15)
+			return level;
 		return BTRFS_ZSTD_DEFAULT_LEVEL;
 	}
 
