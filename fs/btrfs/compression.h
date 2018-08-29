@@ -99,7 +99,7 @@ enum btrfs_compression_type {
 };
 
 struct btrfs_compress_op {
-	struct list_head *(*alloc_workspace)(void);
+	struct list_head *(*alloc_workspace)(unsigned level);
 
 	void (*free_workspace)(struct list_head *workspace);
 
@@ -120,7 +120,9 @@ struct btrfs_compress_op {
 			  unsigned long start_byte,
 			  size_t srclen, size_t destlen);
 
-	void (*set_level)(struct list_head *ws, unsigned int type);
+	int (*set_level)(struct list_head *ws, unsigned int level);
+
+	unsigned (*get_max_level)(void);
 };
 
 extern const struct btrfs_compress_op btrfs_zlib_compress;

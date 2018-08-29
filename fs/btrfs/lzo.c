@@ -71,7 +71,7 @@ static void lzo_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-static struct list_head *lzo_alloc_workspace(void)
+static struct list_head *lzo_alloc_workspace(unsigned level)
 {
 	struct workspace *workspace;
 
@@ -485,8 +485,14 @@ out:
 	return ret;
 }
 
-static void lzo_set_level(struct list_head *ws, unsigned int type)
+static int lzo_set_level(struct list_head *ws, unsigned int level)
 {
+	return 0;
+}
+
+static unsigned lzo_get_max_level(void)
+{
+	return 0;
 }
 
 const struct btrfs_compress_op btrfs_lzo_compress = {
@@ -496,4 +502,5 @@ const struct btrfs_compress_op btrfs_lzo_compress = {
 	.decompress_bio		= lzo_decompress_bio,
 	.decompress		= lzo_decompress,
 	.set_level		= lzo_set_level,
+	.get_max_level = lzo_get_max_level,
 };
