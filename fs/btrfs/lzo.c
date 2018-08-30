@@ -485,7 +485,7 @@ out:
 	return ret;
 }
 
-static int lzo_set_level(struct list_head *ws, unsigned int level)
+static int lzo_set_level(struct list_head *ws, unsigned level)
 {
 	return 0;
 }
@@ -502,5 +502,5 @@ const struct btrfs_compress_op btrfs_lzo_compress = {
 	.decompress_bio		= lzo_decompress_bio,
 	.decompress		= lzo_decompress,
 	.set_level		= lzo_set_level,
-	.get_max_level = lzo_get_max_level,
+	.get_max_level		= lzo_get_max_level,
 };

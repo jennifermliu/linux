@@ -36,6 +36,18 @@ static void zlib_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
+static int zlib_set_level(struct list_head *ws, unsigned level)
+{
+	struct workspace *workspace = list_entry(ws, struct workspace, list);
+
+	if (level > 9)
+		level = 9;
+
+	workspace->level = level > 0 ? level : 3;
+
+	return 0;
+}
+
 static struct list_head *zlib_alloc_workspace(unsigned level)
 {
 	struct workspace *workspace;
@@ -53,6 +65,7 @@ static struct list_head *zlib_alloc_workspace(unsigned level)
 		goto fail;
 
 	INIT_LIST_HEAD(&workspace->list);
+	zlib_set_level(&workspace->list, level);
 
 	return &workspace->list;
 fail:
@@ -390,18 +403,6 @@ next:
 	return ret;
 }
 
-static int zlib_set_level(struct list_head *ws, unsigned int level)
-{
-	struct workspace *workspace = list_entry(ws, struct workspace, list);
-
-	if (level > 9)
-		level = 9;
-
-	workspace->level = level > 0 ? level : 3;
-
-	return 0;
-}
-
 static unsigned zlib_get_max_level(void)
 {
 	return 9;
@@ -413,6 +414,6 @@ const struct btrfs_compress_op btrfs_zlib_compress = {
 	.compress_pages		= zlib_compress_pages,
 	.decompress_bio		= zlib_decompress_bio,
 	.decompress		= zlib_decompress,
-	.set_level              = zlib_set_level,
-	.get_max_level = zlib_get_max_level,
+	.set_level		= zlib_set_level,
+	.get_max_level 		= zlib_get_max_level,
 };

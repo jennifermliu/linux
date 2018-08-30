@@ -51,6 +51,26 @@ static void zstd_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
+static int zstd_set_level(struct list_head *ws, unsigned level)
+{
+	struct workspace *workspace = list_entry(ws, struct workspace, list);
+	ZSTD_parameters params;
+	int size;
+
+	if (level > ZSTD_BTRFS_MAX_LEVEL)
+		level = ZSTD_BTRFS_MAX_LEVEL;
+
+	workspace->level = level > 0 ? level : ZSTD_BTRFS_DEFAULT_LEVEL;
+	params = ZSTD_getParams(workspace->level, ZSTD_BTRFS_MAX_INPUT, 0);
+	size = max_t(size_t,
+			ZSTD_CStreamWorkspaceBound(params.cParams),
+			ZSTD_DStreamWorkspaceBound(ZSTD_BTRFS_MAX_INPUT));
+	if (size > workspace->size) {
+		return -1;
+	}
+	return 0;
+}
+
 static struct list_head *zstd_alloc_workspace(unsigned level)
 {
 	ZSTD_parameters params =
@@ -70,6 +90,7 @@ static struct list_head *zstd_alloc_workspace(unsigned level)
 		goto fail;
 
 	INIT_LIST_HEAD(&workspace->list);
+	zstd_set_level(&workspace->list, level);
 
 	return &workspace->list;
 fail:
@@ -420,37 +441,17 @@ finish:
 	return ret;
 }
 
-static int zstd_set_level(struct list_head *ws, unsigned int level)
-{
-	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	ZSTD_parameters params;
-	int size;
-
-	if (level > ZSTD_BTRFS_MAX_LEVEL)
-		level = ZSTD_BTRFS_MAX_LEVEL;
-
-	workspace->level = level > 0 ? level : ZSTD_BTRFS_DEFAULT_LEVEL;
-	params = ZSTD_getParams(workspace->level, ZSTD_BTRFS_MAX_INPUT, 0);
-	size = max_t(size_t,
-			ZSTD_CStreamWorkspaceBound(params.cParams),
-			ZSTD_DStreamWorkspaceBound(ZSTD_BTRFS_MAX_INPUT));
-	if (size > workspace->size) {
-		return -1;
-	}
-	return 0;
-}
-
 static unsigned zstd_get_max_level(void)
 {
 	return ZSTD_BTRFS_MAX_LEVEL;
 }
 
 const struct btrfs_compress_op btrfs_zstd_compress = {
-	.alloc_workspace = zstd_alloc_workspace,
-	.free_workspace = zstd_free_workspace,
-	.compress_pages = zstd_compress_pages,
-	.decompress_bio = zstd_decompress_bio,
-	.decompress = zstd_decompress,
-	.set_level = zstd_set_level,
-	.get_max_level = zstd_get_max_level,
+	.alloc_workspace	= zstd_alloc_workspace,
+	.free_workspace		= zstd_free_workspace,
+	.compress_pages 	= zstd_compress_pages,
+	.decompress_bio 	= zstd_decompress_bio,
+	.decompress		= zstd_decompress,
+	.set_level		= zstd_set_level,
+	.get_max_level 		= zstd_get_max_level,
 };

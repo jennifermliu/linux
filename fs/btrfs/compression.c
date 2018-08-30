@@ -896,7 +896,7 @@ static void free_workspace(int type, struct list_head *ws)
  * Preallocation makes a forward progress guarantees and we do not return
  * errors.
  */
-static struct list_head *__find_workspace(unsigned int type_level, bool heuristic)
+static struct list_head *__find_workspace(unsigned type_level, bool heuristic)
 {
 	struct list_head *workspace;
 	int cpus = num_online_cpus();
@@ -996,7 +996,7 @@ again:
 	return workspace;
 }
 
-static struct list_head *find_workspace(unsigned int type_level)
+static struct list_head *find_workspace(unsigned type_level)
 {
 	return __find_workspace(type_level, false);
 }
@@ -1058,7 +1058,6 @@ int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
 	struct list_head *workspace;
 	int ret;
 	int type = type_level & 0xF;
-	unsigned level = (type_level & 0xF0) >> 4;
 
 	workspace = find_workspace(type_level);
 	ret = btrfs_compress_op[type-1]->compress_pages(workspace, mapping,
@@ -1088,9 +1087,8 @@ static int btrfs_decompress_bio(struct compressed_bio *cb)
 	struct list_head *workspace;
 	int ret;
 	int type = cb->compress_type;
-	unsigned type_level = type | 0x0;
 
-	workspace = find_workspace(type_level);
+	workspace = find_workspace(type);
 	ret = btrfs_compress_op[type - 1]->decompress_bio(workspace, cb);
 	free_workspace(type, workspace);
 
@@ -1107,9 +1105,8 @@ int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 {
 	struct list_head *workspace;
 	int ret;
-	unsigned type_level = type | 0x0;
 
-	workspace = find_workspace(type_level);
+	workspace = find_workspace(type);
 
 	ret = btrfs_compress_op[type-1]->decompress(workspace, data_in,
 						  dest_page, start_byte,

@@ -120,7 +120,7 @@ struct btrfs_compress_op {
 			  unsigned long start_byte,
 			  size_t srclen, size_t destlen);
 
-	int (*set_level)(struct list_head *ws, unsigned int level);
+	int (*set_level)(struct list_head *ws, unsigned level);
 
 	unsigned (*get_max_level)(void);
 };
