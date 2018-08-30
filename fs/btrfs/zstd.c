@@ -38,7 +38,6 @@ struct workspace {
 	char *buf;
 	struct list_head list;
 	unsigned level;
-	// size_t lowest_failed_size;
 	ZSTD_inBuffer in_buf;
 	ZSTD_outBuffer out_buf;
 };
