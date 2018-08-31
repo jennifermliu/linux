@@ -60,14 +60,17 @@ static int zstd_set_level(struct list_head *ws, unsigned level)
 	if (level > ZSTD_BTRFS_MAX_LEVEL)
 		level = ZSTD_BTRFS_MAX_LEVEL;
 
-	workspace->level = level > 0 ? level : ZSTD_BTRFS_DEFAULT_LEVEL;
-	params = ZSTD_getParams(workspace->level, ZSTD_BTRFS_MAX_INPUT, 0);
+	if (level == 0)
+		level = ZSTD_BTRFS_DEFAULT_LEVEL;
+
+	params = ZSTD_getParams(level, ZSTD_BTRFS_MAX_INPUT, 0);
 	size = max_t(size_t,
 			ZSTD_CStreamWorkspaceBound(params.cParams),
 			ZSTD_DStreamWorkspaceBound(ZSTD_BTRFS_MAX_INPUT));
 	if (size > workspace->size) {
 		return -1;
 	}
+	workspace->level = level;
 	return 0;
 }
 

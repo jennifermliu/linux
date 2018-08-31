@@ -120,6 +120,10 @@ struct btrfs_compress_op {
 			  unsigned long start_byte,
 			  size_t srclen, size_t destlen);
 
+	/* Set level and return 0 if memory allocated in workspace is greater than
+	 * or equal to memory needed to compress with given level.
+	 * Return -1 otherwise
+	 */
 	int (*set_level)(struct list_head *ws, unsigned level);
 
 	unsigned (*get_max_level)(void);

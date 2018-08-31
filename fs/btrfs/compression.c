@@ -826,7 +826,8 @@ void __init btrfs_init_compress(void)
 
 		/*
 		 * Preallocate one workspace for each compression type so
-		 * we can guarantee forward progress in the worst case
+		 * we can guarantee forward progress in the worst case.
+		 * Provide maximum compression level to guarantee large enough workspace.
 		 */
 		workspace = btrfs_compress_op[i]->alloc_workspace(btrfs_compress_op[i]->get_max_level());
 		if (IS_ERR(workspace)) {
@@ -934,7 +935,7 @@ again:
 		spin_unlock(ws_lock);
 		if (!heuristic) {
 			res = btrfs_compress_op[idx]->set_level(workspace, level);
-			if (res != 0){
+			if (res != 0) {
 				free_workspace(type, workspace);
 				goto again;
 			}
