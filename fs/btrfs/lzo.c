@@ -71,7 +71,7 @@ static void lzo_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-static struct list_head *lzo_alloc_workspace(unsigned level)
+static struct list_head *lzo_alloc_workspace(unsigned int level)
 {
 	struct workspace *workspace;
 
@@ -485,12 +485,12 @@ out:
 	return ret;
 }
 
-static int lzo_set_level(struct list_head *ws, unsigned level)
+static int lzo_set_level(struct list_head *ws, unsigned int level)
 {
 	return 0;
 }
 
-static unsigned lzo_get_max_level(void)
+static unsigned int lzo_get_max_level(void)
 {
 	return 0;
 }

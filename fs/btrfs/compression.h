@@ -88,7 +88,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags);
 
-unsigned btrfs_compress_str2level(const char *str);
+unsigned int btrfs_compress_str2level(const char *str);
 
 enum btrfs_compression_type {
 	BTRFS_COMPRESS_NONE  = 0,
@@ -99,7 +99,7 @@ enum btrfs_compression_type {
 };
 
 struct btrfs_compress_op {
-	struct list_head *(*alloc_workspace)(unsigned level);
+	struct list_head *(*alloc_workspace)(unsigned int level);
 
 	void (*free_workspace)(struct list_head *workspace);
 
@@ -124,9 +124,9 @@ struct btrfs_compress_op {
 	 * or equal to memory needed to compress with given level.
 	 * Return -1 otherwise
 	 */
-	int (*set_level)(struct list_head *ws, unsigned level);
+	int (*set_level)(struct list_head *ws, unsigned int level);
 
-	unsigned (*get_max_level)(void);
+	unsigned int (*get_max_level)(void);
 };
 
 extern const struct btrfs_compress_op btrfs_zlib_compress;

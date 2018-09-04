@@ -897,14 +897,14 @@ static void free_workspace(int type, struct list_head *ws)
  * Preallocation makes a forward progress guarantees and we do not return
  * errors.
  */
-static struct list_head *__find_workspace(unsigned type_level, bool heuristic)
+static struct list_head *__find_workspace(unsigned int type_level, bool heuristic)
 {
 	struct list_head *workspace;
 	int cpus = num_online_cpus();
 	int type = type_level & 0xF;
 	int idx = type - 1;
-	unsigned level = (type_level & 0xF0) >> 4;
-	unsigned nofs_flag;
+	unsigned int level = (type_level & 0xF0) >> 4;
+	unsigned int nofs_flag;
 	struct list_head *idle_ws;
 	spinlock_t *ws_lock;
 	atomic_t *total_ws;
@@ -997,7 +997,7 @@ again:
 	return workspace;
 }
 
-static struct list_head *find_workspace(unsigned type_level)
+static struct list_head *find_workspace(unsigned int type_level)
 {
 	return __find_workspace(type_level, false);
 }
@@ -1605,7 +1605,7 @@ out:
 
 unsigned int btrfs_compress_str2level(const char *str)
 {
-	unsigned level;
+	unsigned int level;
 	int result;
 
 	if (strncmp(str, "zlib", 4) == 0) {

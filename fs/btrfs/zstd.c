@@ -22,7 +22,7 @@
 #define ZSTD_BTRFS_DEFAULT_LEVEL 3
 #define ZSTD_BTRFS_MAX_LEVEL 15
 
-static ZSTD_parameters zstd_get_btrfs_parameters(size_t src_len, unsigned level)
+static ZSTD_parameters zstd_get_btrfs_parameters(size_t src_len, unsigned int level)
 {
 	ZSTD_parameters params = ZSTD_getParams(level, src_len, 0);
 
@@ -37,7 +37,7 @@ struct workspace {
 	size_t size;
 	char *buf;
 	struct list_head list;
-	unsigned level;
+	unsigned int level;
 	ZSTD_inBuffer in_buf;
 	ZSTD_outBuffer out_buf;
 };
@@ -51,7 +51,7 @@ static void zstd_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-static int zstd_set_level(struct list_head *ws, unsigned level)
+static int zstd_set_level(struct list_head *ws, unsigned int level)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	ZSTD_parameters params;
@@ -74,7 +74,7 @@ static int zstd_set_level(struct list_head *ws, unsigned level)
 	return 0;
 }
 
-static struct list_head *zstd_alloc_workspace(unsigned level)
+static struct list_head *zstd_alloc_workspace(unsigned int level)
 {
 	ZSTD_parameters params =
 			zstd_get_btrfs_parameters(ZSTD_BTRFS_MAX_INPUT, level);
@@ -444,7 +444,7 @@ finish:
 	return ret;
 }
 
-static unsigned zstd_get_max_level(void)
+static unsigned int zstd_get_max_level(void)
 {
 	return ZSTD_BTRFS_MAX_LEVEL;
 }

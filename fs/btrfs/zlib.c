@@ -36,7 +36,7 @@ static void zlib_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-static int zlib_set_level(struct list_head *ws, unsigned level)
+static int zlib_set_level(struct list_head *ws, unsigned int level)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 
@@ -48,7 +48,7 @@ static int zlib_set_level(struct list_head *ws, unsigned level)
 	return 0;
 }
 
-static struct list_head *zlib_alloc_workspace(unsigned level)
+static struct list_head *zlib_alloc_workspace(unsigned int level)
 {
 	struct workspace *workspace;
 	int workspacesize;
@@ -403,7 +403,7 @@ next:
 	return ret;
 }
 
-static unsigned zlib_get_max_level(void)
+static unsigned int zlib_get_max_level(void)
 {
 	return 9;
 }
