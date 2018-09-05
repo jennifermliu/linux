@@ -42,6 +42,18 @@ struct workspace {
 	ZSTD_outBuffer out_buf;
 };
 
+static int zstd_reallocate_mem(struct workspace *workspace, int size)
+{
+	void* new_mem = kvmalloc(size, GFP_KERNEL);
+	if (new_mem) {
+		kvfree(workspace->mem);
+		workspace->mem = new_mem;
+		workspace->size = size;
+		return 0;
+	}
+	return -1;
+}
+
 static void zstd_free_workspace(struct list_head *ws)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
@@ -68,7 +80,8 @@ static int zstd_set_level(struct list_head *ws, unsigned int level)
 			ZSTD_CStreamWorkspaceBound(params.cParams),
 			ZSTD_DStreamWorkspaceBound(ZSTD_BTRFS_MAX_INPUT));
 	if (size > workspace->size) {
-		return -1;
+		if (zstd_reallocate_mem(workspace, size) != 0)
+			return -1;
 	}
 	workspace->level = level;
 	return 0;
