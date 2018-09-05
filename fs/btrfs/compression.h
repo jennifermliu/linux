@@ -126,7 +126,7 @@ struct btrfs_compress_op {
 	 */
 	int (*set_level)(struct list_head *ws, unsigned int level);
 
-	unsigned int (*get_max_level)(void);
+	unsigned int max_level;
 };
 
 extern const struct btrfs_compress_op btrfs_zlib_compress;

@@ -829,7 +829,7 @@ void __init btrfs_init_compress(void)
 		 * we can guarantee forward progress in the worst case.
 		 * Provide maximum compression level to guarantee large enough workspace.
 		 */
-		workspace = btrfs_compress_op[i]->alloc_workspace(btrfs_compress_op[i]->get_max_level());
+		workspace = btrfs_compress_op[i]->alloc_workspace(btrfs_compress_op[i]->max_level);
 		if (IS_ERR(workspace)) {
 			pr_warn("BTRFS: cannot preallocate compression workspace, will try later\n");
 		} else {

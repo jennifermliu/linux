@@ -403,11 +403,6 @@ next:
 	return ret;
 }
 
-static unsigned int zlib_get_max_level(void)
-{
-	return 9;
-}
-
 const struct btrfs_compress_op btrfs_zlib_compress = {
 	.alloc_workspace	= zlib_alloc_workspace,
 	.free_workspace		= zlib_free_workspace,
@@ -415,5 +410,5 @@ const struct btrfs_compress_op btrfs_zlib_compress = {
 	.decompress_bio		= zlib_decompress_bio,
 	.decompress		= zlib_decompress,
 	.set_level		= zlib_set_level,
-	.get_max_level 		= zlib_get_max_level,
+	.max_level 		= 9,
 };
