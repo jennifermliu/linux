@@ -24,7 +24,9 @@
 #define BTRFS_MAX_UNCOMPRESSED		(SZ_128K)
 
 #define	BTRFS_ZLIB_DEFAULT_LEVEL		3
+#define	BTRFS_ZLIB_MAX_LEVEL				9
 #define	BTRFS_ZSTD_DEFAULT_LEVEL		3
+#define	BTRFS_ZSTD_MAX_LEVEL				15
 
 struct compressed_bio {
 	/* number of bios pending for this compressed extent */
@@ -120,13 +122,18 @@ struct btrfs_compress_op {
 			  unsigned long start_byte,
 			  size_t srclen, size_t destlen);
 
-	/* Set level and return 0 if memory allocated in workspace is greater than
+	/*
+	 * Check if memory allocated in workspace is greater than
 	 * or equal to memory needed to compress with given level.
-	 * Return -1 otherwise
+	 * If not, try to reallocate memory for the compression level
+	 * and return false if failed to reallocate
+	 * Return true otherwise
 	 */
-	int (*set_level)(struct list_head *ws, unsigned int level);
+	bool (*set_level)(struct list_head *ws, unsigned int level);
 
 	unsigned int max_level;
+
+	unsigned int default_level;
 };
 
 extern const struct btrfs_compress_op btrfs_zlib_compress;

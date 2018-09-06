@@ -910,7 +910,7 @@ static struct list_head *__find_workspace(unsigned int type_level, bool heuristi
 	atomic_t *total_ws;
 	wait_queue_head_t *ws_wait;
 	int *free_ws;
-	int res;
+	int ret;
 
 	if (heuristic) {
 		idle_ws	 = &btrfs_heuristic_ws.idle_ws;
@@ -935,9 +935,9 @@ again:
 		spin_unlock(ws_lock);
 		if (!heuristic) {
 			nofs_flag = memalloc_nofs_save();
-			res = btrfs_compress_op[idx]->set_level(workspace, level);
+			ret = btrfs_compress_op[idx]->set_level(workspace, level);
 			memalloc_nofs_restore(nofs_flag);
-			if (res != 0) {
+			if (!ret) {
 				free_workspace(type, workspace);
 				goto again;
 			}
@@ -1606,24 +1606,26 @@ out:
 
 unsigned int btrfs_compress_str2level(const char *str)
 {
+	int ret;
 	unsigned int level;
-	int result;
+	unsigned int default_level = 0;
+	unsigned int max_level = 0;
 
 	if (strncmp(str, "zlib", 4) == 0) {
-		result = kstrtouint(str + 5, 10, &level);
-		/* Accepted form: zlib:1 up to zlib:9 and nothing left after the number */
-		if (str[4] == ':' && result == 0 && 0 < level && level <= 9)
-			return level;
-		return BTRFS_ZLIB_DEFAULT_LEVEL;
+		default_level = BTRFS_ZLIB_DEFAULT_LEVEL;
+		max_level = BTRFS_ZLIB_MAX_LEVEL;
 	}
 
 	if (strncmp(str, "zstd", 4) == 0) {
-		result = kstrtouint(str + 5, 10, &level);
-		/* Accepted form: zstd:1 up to zstd:15 and nothing left after the number */
-		if (str[4] == ':' && result == 0 && 0 < level && level <= 15)
-			return level;
-		return BTRFS_ZSTD_DEFAULT_LEVEL;
+		default_level = BTRFS_ZSTD_DEFAULT_LEVEL;
+		max_level = BTRFS_ZSTD_MAX_LEVEL;
 	}
 
-	return 0;
+	if (str[4] == ':') {
+		ret = kstrtouint(str + 5, 10, &level);
+		if (str[4] == ':' && ret == 0 && 0 < level && level <= max_level)
+			return level;
+	}
+
+	return default_level;
 }

@@ -20,6 +20,9 @@
 #include <linux/refcount.h>
 #include "compression.h"
 
+#define BTRFS_ZLIB_DEFAULT_LEVEL 3
+#define BTRFS_ZLIB_MAX_LEVEL 9
+
 struct workspace {
 	z_stream strm;
 	char *buf;
@@ -36,16 +39,16 @@ static void zlib_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-static int zlib_set_level(struct list_head *ws, unsigned int level)
+static bool zlib_set_level(struct list_head *ws, unsigned int level)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 
-	if (level > 9)
-		level = 9;
+	if (level > BTRFS_ZLIB_MAX_LEVEL)
+		level = BTRFS_ZLIB_MAX_LEVEL;
 
-	workspace->level = level > 0 ? level : 3;
+	workspace->level = level > 0 ? level : BTRFS_ZLIB_DEFAULT_LEVEL;
 
-	return 0;
+	return true;
 }
 
 static struct list_head *zlib_alloc_workspace(unsigned int level)
@@ -410,5 +413,5 @@ const struct btrfs_compress_op btrfs_zlib_compress = {
 	.decompress_bio		= zlib_decompress_bio,
 	.decompress		= zlib_decompress,
 	.set_level		= zlib_set_level,
-	.max_level 		= 9,
+	.max_level 		= BTRFS_ZLIB_MAX_LEVEL,
 };
