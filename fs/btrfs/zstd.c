@@ -44,7 +44,9 @@ struct workspace {
 
 static int zstd_reallocate_mem(struct workspace *workspace, int size)
 {
-	void* new_mem = kvmalloc(size, GFP_KERNEL);
+	void *new_mem;
+
+	new_mem = kvmalloc(size, GFP_KERNEL);
 	if (new_mem) {
 		kvfree(workspace->mem);
 		workspace->mem = new_mem;

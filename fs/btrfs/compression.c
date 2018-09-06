@@ -934,12 +934,13 @@ again:
 		(*free_ws)--;
 		spin_unlock(ws_lock);
 		if (!heuristic) {
+			nofs_flag = memalloc_nofs_save();
 			res = btrfs_compress_op[idx]->set_level(workspace, level);
+			memalloc_nofs_restore(nofs_flag);
 			if (res != 0) {
 				free_workspace(type, workspace);
 				goto again;
 			}
-
 		}
 		return workspace;
 	}
