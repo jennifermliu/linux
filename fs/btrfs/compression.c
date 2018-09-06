@@ -1614,16 +1614,16 @@ unsigned int btrfs_compress_str2level(const char *str)
 	if (strncmp(str, "zlib", 4) == 0) {
 		default_level = BTRFS_ZLIB_DEFAULT_LEVEL;
 		max_level = BTRFS_ZLIB_MAX_LEVEL;
-	}
-
-	if (strncmp(str, "zstd", 4) == 0) {
+	} else if (strncmp(str, "zstd", 4) == 0) {
 		default_level = BTRFS_ZSTD_DEFAULT_LEVEL;
 		max_level = BTRFS_ZSTD_MAX_LEVEL;
+	} else {
+		return default_level;
 	}
 
 	if (str[4] == ':') {
 		ret = kstrtouint(str + 5, 10, &level);
-		if (str[4] == ':' && ret == 0 && 0 < level && level <= max_level)
+		if (ret == 0 && 0 < level && level <= max_level)
 			return level;
 	}
 

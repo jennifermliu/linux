@@ -20,9 +20,6 @@
 #include <linux/refcount.h>
 #include "compression.h"
 
-#define BTRFS_ZLIB_DEFAULT_LEVEL 3
-#define BTRFS_ZLIB_MAX_LEVEL 9
-
 struct workspace {
 	z_stream strm;
 	char *buf;
