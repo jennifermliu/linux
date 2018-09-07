@@ -19,6 +19,8 @@
 
 #define ZSTD_BTRFS_MAX_WINDOWLOG 17
 #define ZSTD_BTRFS_MAX_INPUT (1 << ZSTD_BTRFS_MAX_WINDOWLOG)
+#define	BTRFS_ZSTD_DEFAULT_LEVEL		3
+#define	BTRFS_ZSTD_MAX_LEVEL				15
 
 static ZSTD_parameters zstd_get_btrfs_parameters(size_t src_len, unsigned int level)
 {
@@ -465,4 +467,5 @@ const struct btrfs_compress_op btrfs_zstd_compress = {
 	.decompress		= zstd_decompress,
 	.set_level		= zstd_set_level,
 	.max_level 		= BTRFS_ZSTD_MAX_LEVEL,
+	.default_level = BTRFS_ZSTD_DEFAULT_LEVEL,
 };

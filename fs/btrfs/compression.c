@@ -1607,25 +1607,22 @@ out:
 unsigned int btrfs_compress_str2level(const char *str)
 {
 	int ret;
+	int type;
 	unsigned int level;
-	unsigned int default_level = 0;
-	unsigned int max_level = 0;
 
 	if (strncmp(str, "zlib", 4) == 0) {
-		default_level = BTRFS_ZLIB_DEFAULT_LEVEL;
-		max_level = BTRFS_ZLIB_MAX_LEVEL;
+		type = BTRFS_COMPRESS_ZLIB;
 	} else if (strncmp(str, "zstd", 4) == 0) {
-		default_level = BTRFS_ZSTD_DEFAULT_LEVEL;
-		max_level = BTRFS_ZSTD_MAX_LEVEL;
+		type = BTRFS_COMPRESS_ZSTD;
 	} else {
-		return default_level;
+		return 0;
 	}
 
 	if (str[4] == ':') {
 		ret = kstrtouint(str + 5, 10, &level);
-		if (ret == 0 && 0 < level && level <= max_level)
+		if (ret == 0 && 0 < level && level <= btrfs_compress_op[type-1]->max_level)
 			return level;
 	}
 
-	return default_level;
+	return btrfs_compress_op[type-1]->default_level;
 }

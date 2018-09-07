@@ -520,7 +520,7 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 				compress_type = "zlib";
 
 				info->compress_type = BTRFS_COMPRESS_ZLIB;
-				info->compress_level = BTRFS_ZLIB_DEFAULT_LEVEL;
+				info->compress_level = btrfs_zlib_compress.default_level;
 				/*
 				 * args[0] contains uninitialized data since
 				 * for these tokens we don't expect any

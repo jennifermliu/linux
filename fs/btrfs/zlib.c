@@ -20,6 +20,9 @@
 #include <linux/refcount.h>
 #include "compression.h"
 
+#define	BTRFS_ZLIB_DEFAULT_LEVEL		3
+#define	BTRFS_ZLIB_MAX_LEVEL				9
+
 struct workspace {
 	z_stream strm;
 	char *buf;
@@ -411,4 +414,5 @@ const struct btrfs_compress_op btrfs_zlib_compress = {
 	.decompress		= zlib_decompress,
 	.set_level		= zlib_set_level,
 	.max_level 		= BTRFS_ZLIB_MAX_LEVEL,
+	.default_level 		= BTRFS_ZLIB_DEFAULT_LEVEL,
 };
